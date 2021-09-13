@@ -6,7 +6,7 @@ use clap::{App, AppSettings, Arg};
 use rayon::prelude::*;
 use wireguard_vanity_lib::{measure_rate, search_re};
 use x25519_dalek::{PublicKey, StaticSecret};
-use regex::RegexBuilder;
+use regex::bytes::RegexBuilder;
 
 fn format_rate(rate: f64) -> String {
     if rate > 1e9 {

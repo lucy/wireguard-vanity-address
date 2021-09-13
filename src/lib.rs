@@ -3,7 +3,7 @@ use curve25519_dalek::{constants::ED25519_BASEPOINT_POINT, edwards::EdwardsPoint
 use rand_core::OsRng;
 use std::time::{Duration, Instant};
 use x25519_dalek::{PublicKey, StaticSecret};
-use regex::Regex;
+use regex::bytes::Regex;
 
 pub fn trial(prefix: &str, start: usize, end: usize) -> Option<(String, String)> {
     let private = StaticSecret::new(&mut OsRng);
@@ -405,7 +405,7 @@ pub fn search_re(re: &Regex) -> (StaticSecret, PublicKey) {
     let mut buf = String::new();
     let both = seed.scan().find(|(_, point)| {
         base64::encode_config_buf( point.to_montgomery().as_bytes(), base64::STANDARD, &mut buf);
-        if re.is_match(&buf) { return true; }
+        if re.is_match(&buf.as_bytes()) { return true; }
         buf.clear();
         false
     }).unwrap();
@@ -422,7 +422,7 @@ pub fn measure_rate(re: &Regex) -> f64 {
             // timing includes the work of checking the pubkey
             if let Trial(_count, point) = res {
                 base64::encode_config_buf( point.to_montgomery().as_bytes(), base64::STANDARD, &mut buf);
-                re.is_match(&buf);
+                re.is_match(&buf.as_bytes());
                 buf.clear();
             };
             res
