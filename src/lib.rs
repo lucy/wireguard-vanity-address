@@ -3,6 +3,7 @@ use curve25519_dalek::{constants::ED25519_BASEPOINT_POINT, edwards::EdwardsPoint
 use rand_core::OsRng;
 use std::time::{Duration, Instant};
 use x25519_dalek::{PublicKey, StaticSecret};
+use regex::Regex;
 
 pub fn trial(prefix: &str, start: usize, end: usize) -> Option<(String, String)> {
     let private = StaticSecret::new(&mut OsRng);
@@ -353,7 +354,7 @@ impl Iterator for ScanProgress {
     type Item = ScanResults;
     fn next(&mut self) -> Option<ScanResults> {
         use ScanResults::*;
-        if self.count & 1024 == 0 {
+        if self.count & 0xfff == 0 {
             let now = Instant::now();
             let elapsed = now.duration_since(self.last_update);
             if elapsed > self.update_interval {
@@ -399,24 +400,30 @@ where
     seed.convert_both(both)
 }
 
-pub fn search_for_prefix(prefix: &str, start: usize, end: usize) -> (StaticSecret, PublicKey) {
-    let check = make_check_predicate(prefix, start, end);
+pub fn search_re(re: &Regex) -> (StaticSecret, PublicKey) {
     let seed = Seed::generate();
-    let both = seed.scan().find(|(_, point)| check(&point)).unwrap();
+    let mut buf = String::new();
+    let both = seed.scan().find(|(_, point)| {
+        base64::encode_config_buf( point.to_montgomery().as_bytes(), base64::STANDARD, &mut buf);
+        if re.is_match(&buf) { return true; }
+        buf.clear();
+        false
+    }).unwrap();
     seed.convert_both(both)
 }
 
 /// returns checks per second
-pub fn measure_rate() -> f64 {
+pub fn measure_rate(re: &Regex) -> f64 {
     use ScanResults::*;
-    // prefix with characters that will never match
-    let check = make_check_predicate("****", 0, 10);
+    let mut buf = String::new();
     Seed::generate()
         .scan_progress()
         .map(|res| {
             // timing includes the work of checking the pubkey
             if let Trial(_count, point) = res {
-                check(&point);
+                base64::encode_config_buf( point.to_montgomery().as_bytes(), base64::STANDARD, &mut buf);
+                re.is_match(&buf);
+                buf.clear();
             };
             res
         })
